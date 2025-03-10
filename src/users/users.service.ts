@@ -1,44 +1,35 @@
-import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
+import { Injectable, Inject } from '@nestjs/common';
+import { User } from './user.model';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-    constructor(private readonly databaseService: DatabaseService) {}
-    async findAll() {
-        const sqlQuery = 'select * from users';
-        return this.databaseService.query(sqlQuery);
-    }
-    async findOne(id: Number) {
-        const sqlQuery = `select * from users where id = ${id}`;
-        return this.databaseService.query(sqlQuery);
-    }
-    async create(createStudentDto: CreateUserDto){
-        const sqlQuery = `insert into users (name, age, grade) values ('${createStudentDto.name}', ${createStudentDto.age}, '${createStudentDto.grade}')`;
-        return this.databaseService.query(sqlQuery);    
-    }
-    async update(id: Number, updateUserDto: UpdateUserDto) {
-        // Collect all fields that are present in updateUserDto
-        const fieldsToUpdate = Object.entries(updateUserDto)
-        .filter(([_, value]) => value !== undefined) // Ignore undefined fields
-        .map(([key, value]) => `${key} = ${typeof value === 'string' ? `'${value}'` : value}`)
-        .join(', ');
+  constructor(
+    @Inject('USER_MODEL')
+    private userModel: typeof User,
+  ) {}
 
-        // If no fields are provided, return an error
-        if (!fieldsToUpdate) {
-            throw new Error("No fields provided for update");
-        }
+  async findAll(): Promise<User[]> {
+    return this.userModel.findAll();
+  }
 
-        // Construct the SQL query dynamically
-        const sqlQuery = `UPDATE users SET ${fieldsToUpdate} WHERE id = ${id}`;
+  async findOne(id: number): Promise<User | null> {
+    return this.userModel.findByPk(id);
+  }
 
-        // Execute the query
-        return this.databaseService.query(sqlQuery);
-    }
-    async remove(id: Number) {
-        const sqlQuery = `delete from users where id = ${id}`;
-        return this.databaseService.query(sqlQuery);
-    }
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    return this.userModel.create(createUserDto as any);
+  }
+
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<[number, User[]]> {
+    return this.userModel.update(updateUserDto, {
+      where: { id },
+      returning: true,
+    });
+  }
+
+  async remove(id: number): Promise<void> {
+    await this.userModel.destroy({ where: { id } });
+  }
 }
-    
